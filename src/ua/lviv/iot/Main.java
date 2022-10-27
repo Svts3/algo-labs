@@ -1,113 +1,87 @@
 package ua.lviv.iot;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.ArrayDeque;
-import java.util.Queue;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Scanner;
+import java.util.Stack;
 
-import ua.lviv.iot.bfs.Node;
+import ua.lviv.iot.dfs.DFS;
+import ua.lviv.iot.dfs.Vertex;
 
 public class Main {
+    public static int numberOfLevels;
 
-    public static boolean isSafe(int[][] matrix, boolean visited[][], int x, int y) {
-        return (matrix[x][y] == 1 && !visited[x][y]);
-    }
-
-    public static boolean isValid(int x, int y, int rows, int cols) {
-        return (x < rows && y < cols && x >= 0 && y >= 0);
-    }
-
-    public static int findMinimunNumberOfStepsToReachLastColumn(int[][] matrix) {
-        int rows = matrix.length;
-        int cols = matrix[0].length;
-
-        final int[] row = { -1, 0, 0, 1 };
-        final int[] col = { 0, -1, 1, 0 };
-
-        boolean[][] visited = new boolean[rows][cols];
-
-        Queue<Node> nodesToBeVisited = new ArrayDeque<Node>();
-
-        for (int i = 0; i < rows; i++) {
-            if (matrix[i][0] == 1) {
-                nodesToBeVisited.add(new Node(i, 0, 0));
-                visited[i][0] = true;
-            }
+    public static Integer[][] readFile(String fileName) throws IOException {
+        File file = new File(fileName);
+        Scanner scanner = new Scanner(file);
+        numberOfLevels = Integer.parseInt(scanner.nextLine());
+        String[] graph = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())))
+                .split("\r\n");
+        Integer[][] companies = new Integer[numberOfLevels + 1][];
+        for (int i = 0; i < graph.length; i++) {
+            companies[i] = new Integer[graph[i].split(" ").length];
         }
 
-        while (!nodesToBeVisited.isEmpty()) {
-            int frontNodeX = nodesToBeVisited.peek().getX();
-            int frontNodeY = nodesToBeVisited.peek().getY();
-            int distance = nodesToBeVisited.peek().getDistance();
-            nodesToBeVisited.poll();
-
-            if (frontNodeY == cols - 1) {
-                return distance;
-            }
-
-            for (int i = 0; i < row.length; i++) {
-                if (isValid(frontNodeX + row[i], frontNodeY + col[i], rows, cols)
-                        && isSafe(matrix, visited, frontNodeX + row[i], frontNodeY + col[i])) {
-                    visited[frontNodeX + row[i]][frontNodeY + col[i]] = true;
-                    nodesToBeVisited
-                            .add(new Node(frontNodeX + row[i], frontNodeY + col[i], distance + 1));
+        for (int i = 0; i < companies.length; i++) {
+            for (int j = 0; j < companies[0].length;) {
+                for (int g = 0; g < graph[i].split(" ").length; g++) {
+                    String[] splittedValues = graph[i].split(" ");
+                    companies[i][j] = Integer.parseInt(splittedValues[g]);
+                    j++;
+                    splittedValues = null;
                 }
             }
         }
-
-        return Integer.MAX_VALUE;
+        return companies;
     }
 
-    public static int findShortestDistance(int[][] matrix) {
+    public static void main(String[] args) throws NumberFormatException, IOException {
 
-        if (matrix == null || matrix.length == 0) {
-            return 0;
+        Integer[][] graph = readFile("src//input1.txt");
+
+        Vertex[][] vertexGraph = new Vertex[graph.length][];
+
+        for (int i = 0; i < graph.length; i++) {
+            vertexGraph[i] = new Vertex[graph[i].length];
         }
-        int rows = matrix.length;
-        int cols = matrix[0].length;
 
-        int[] r = { -1, -1, -1, 0, 0, 1, 1, 1 };
-        int[] c = { -1, 0, 1, -1, 1, -1, 0, 1 };
-
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                for (int j2 = 0; j2 < r.length; j2++) {
-                    if (matrix[i][j] == 0 && isValid(i + r[j2], j + c[j2], rows, cols)
-                            && matrix[i + r[j2]][j + c[j2]] == 1) {
-                        matrix[i + r[j2]][j + c[j2]] = Integer.MAX_VALUE;
-
-                    }
-
-                }
+        for (int i = 1; i < graph.length; i++) {
+            for (int j = 0; j < graph[i].length; j++) {
+                vertexGraph[i][j] = new Vertex(graph[i][j]);
             }
         }
 
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                if (matrix[i][j] == Integer.MAX_VALUE) {
-                    matrix[i][j] = 0;
+        for (int i = vertexGraph.length - 1; i > 1; i--) {
+            for (int j = 0; j < vertexGraph[i].length; j++) {
+                if (j == 0) {
+                    vertexGraph[i][j].right = vertexGraph[i - 1][j];
+                    vertexGraph[i][j].left = null;
+                } else if (j == vertexGraph[i].length - 1) {
+                    vertexGraph[i][j].right = null;
+                    vertexGraph[i][j].left = vertexGraph[i - 1][j - 1];
+                } else {
+                    vertexGraph[i][j].left = vertexGraph[i - 1][j - 1];
+                    vertexGraph[i][j].right = vertexGraph[i - 1][j];
                 }
+
             }
         }
 
-        return findMinimunNumberOfStepsToReachLastColumn(matrix);
-    }
+        DFS dfs = new DFS(vertexGraph);
 
-    public static void main(String[] args) throws FileNotFoundException {
+        dfs.doDFS(numberOfLevels);
+        System.out.println(dfs.getMaxExperience());
 
-        Scanner input = new Scanner(new File("src\\input.txt"));
-        int[][] matrix = new int[10][10];
-        for (int i = 0; i < 10; ++i) {
-            for (int j = 0; j < 10; ++j) {
-                if (input.hasNextInt()) {
-                    matrix[i][j] = input.nextInt();
-                }
-            }
-        }
-        int distance = findShortestDistance(matrix);
-
-        System.out.println("The shortest path: " + distance);
+        File file = new File("src\\career.out.txt");
+        FileWriter fileWriter = new FileWriter(file.getAbsolutePath());
+        fileWriter.write(Integer.toString(dfs.getMaxExperience()));
+        fileWriter.close();
 
     }
+
 }
