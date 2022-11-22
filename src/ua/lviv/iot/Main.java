@@ -1,86 +1,101 @@
 package ua.lviv.iot;
 
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.FileNotFoundException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Queue;
 import java.util.Scanner;
-import java.util.Stack;
-
-import ua.lviv.iot.dfs.DFS;
-import ua.lviv.iot.dfs.Vertex;
 
 public class Main {
-    public static int numberOfLevels;
 
-    public static Integer[][] readFile(String fileName) throws IOException {
-        File file = new File(fileName);
-        Scanner scanner = new Scanner(file);
-        numberOfLevels = Integer.parseInt(scanner.nextLine());
-        String[] graph = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())))
-                .split("\r\n");
-        Integer[][] companies = new Integer[numberOfLevels + 1][];
-        for (int i = 0; i < graph.length; i++) {
-            companies[i] = new Integer[graph[i].split(" ").length];
-        }
+    public static Double getHypotenuse(Double a, Double b) {
 
-        for (int i = 0; i < companies.length; i++) {
-            for (int j = 0; j < companies[0].length;) {
-                for (int g = 0; g < graph[i].split(" ").length; g++) {
-                    String[] splittedValues = graph[i].split(" ");
-                    companies[i][j] = Integer.parseInt(splittedValues[g]);
-                    j++;
-                    splittedValues = null;
-                }
-            }
-        }
-        return companies;
+        return Math.sqrt((a * a) + (b * b));
     }
 
-    public static void main(String[] args) throws NumberFormatException, IOException {
+    static Boolean atTheEnd = false;
 
-        Integer[][] graph = readFile("src//input1.txt");
+    public static Double dynamicRecursion(int index, Double maxValueFromLeftAndRight,
+            List<Double> heights, Double lowerCatet, Queue<Double> queue) {
 
-        Vertex[][] vertexGraph = new Vertex[graph.length][];
+        atTheEnd = false;
 
-        for (int i = 0; i < graph.length; i++) {
-            vertexGraph[i] = new Vertex[graph[i].length];
+        // Check if we have reached the end
+        if (index + 1 == heights.size()) {
+            return maxValueFromLeftAndRight;
         }
 
-        for (int i = 1; i < graph.length; i++) {
-            for (int j = 0; j < graph[i].length; j++) {
-                vertexGraph[i][j] = new Vertex(graph[i][j]);
-            }
+        Double left, right;
+        if (atTheEnd) {
+            left = queue.peek();
+            queue.poll();
+            right = queue.peek();
+            queue.poll();
+        } else {
+            left = dynamicRecursion(index + 1, heights.get(index + 1), heights, lowerCatet, queue);
+            atTheEnd = true;
+            right = dynamicRecursion(index + 1, 1D, heights, lowerCatet, queue);
+
+            queue.add(left);
+            queue.add(right);
         }
 
-        for (int i = vertexGraph.length - 1; i > 1; i--) {
-            for (int j = 0; j < vertexGraph[i].length; j++) {
-                if (j == 0) {
-                    vertexGraph[i][j].right = vertexGraph[i - 1][j];
-                    vertexGraph[i][j].left = null;
-                } else if (j == vertexGraph[i].length - 1) {
-                    vertexGraph[i][j].right = null;
-                    vertexGraph[i][j].left = vertexGraph[i - 1][j - 1];
-                } else {
-                    vertexGraph[i][j].left = vertexGraph[i - 1][j - 1];
-                    vertexGraph[i][j].right = vertexGraph[i - 1][j];
-                }
+        Double leftHypotenuse = getHypotenuse(heights.get(index + 1) - maxValueFromLeftAndRight,
+                lowerCatet);
+        Double rightHypotenuse = getHypotenuse(1 - maxValueFromLeftAndRight, lowerCatet);
 
-            }
+        // find max value between left + the previous left and right + the previous
+        // right
+        // else find max value between left and right
+        if (index + 2 != heights.size())
+            maxValueFromLeftAndRight = Math.max(leftHypotenuse + left, rightHypotenuse + right);
+        else {
+            maxValueFromLeftAndRight = Math.max(leftHypotenuse, rightHypotenuse);
         }
 
-        DFS dfs = new DFS(vertexGraph);
+        return maxValueFromLeftAndRight;
+    }
 
-        dfs.doDFS(numberOfLevels);
-        System.out.println(dfs.getMaxExperience());
+    public static Double getMaxWireLength(List<Double> heights, Double widthCatet,
+            Queue<Double> queue) {
+        Double maxValue = dynamicRecursion(0, heights.get(0), heights, widthCatet, queue);
+        if (heights.get(0) != 1) {
+            heights.set(0, 1D);
+            Double maxValueRight = dynamicRecursion(0, heights.get(0), heights, widthCatet, queue);
+            maxValue = Math.max(maxValue, maxValueRight);
+        }
+        return maxValue;
+    }
 
-        File file = new File("src\\career.out.txt");
-        FileWriter fileWriter = new FileWriter(file.getAbsolutePath());
-        fileWriter.write(Integer.toString(dfs.getMaxExperience()));
-        fileWriter.close();
+    public static void main(String[] args) throws FileNotFoundException {
+
+        File file = new File("src//input.txt");
+
+        Scanner scanner = new Scanner(file);
+
+        Double distanceBetweenSupports = Double.valueOf(scanner.nextLine());
+        List<Integer> list = new ArrayList<>();
+
+        String[] lines = scanner.nextLine().split(" ");
+
+        List<Double> numbers = new ArrayList<>();
+
+        for (int i = 0; i < lines.length; i++) {
+            numbers.add(Double.valueOf(lines[i]));
+        }
+
+        Queue<Double> queue = new ArrayDeque<>();
+
+        Double maxWireLength = getMaxWireLength(numbers, distanceBetweenSupports, queue);
+
+        BigDecimal bigDecimal = new BigDecimal(maxWireLength).setScale(2, RoundingMode.DOWN);
+
+        System.out.println("Max wire length needed: " + bigDecimal.doubleValue());
 
     }
 
